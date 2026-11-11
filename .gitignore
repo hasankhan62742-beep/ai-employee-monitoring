@@ -2,6 +2,7 @@ __pycache__/
 *.pyc
 *.pt
 *.mp4
+!examples/sample_office.mp4
 *.avi
 *.mov
 outputs/

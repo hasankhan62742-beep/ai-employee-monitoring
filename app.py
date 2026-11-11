@@ -41,10 +41,41 @@ from src.report import (
 # upload form render instantly; the heavy import happens only when
 # the user actually presses Process.
 
-SAMPLE_VIDEO_URL = (
+SAMPLE_VIDEO_URLS = [
     "https://videos.pexels.com/video-files/7686621/"
-    "7686621-sd_640_360_24fps.mp4"
+    "7686621-sd_640_360_24fps.mp4",
+    "https://videos.pexels.com/video-files/9034880/"
+    "9034880-sd_640_360_24fps.mp4",
+]
+# Bundled sample video (1.4 MB) — used first, so the sample test works
+# even if Pexels blocks the download.
+SAMPLE_VIDEO_FILE = os.path.join(
+    os.path.dirname(os.path.abspath(__file__)),
+    "examples", "sample_office.mp4",
 )
+
+
+def download_sample_video(dst_path):
+    """Download the sample video with a browser User-Agent.
+
+    Plain urllib.request.urlretrieve sends Python-urllib as its
+    User-Agent, which Pexels/CloudFront rejects with an HTTPError —
+    that crashed the app on Streamlit Cloud (verified 2026-11-11).
+    A browser User-Agent + a fallback URL fix it.
+    """
+    for url in SAMPLE_VIDEO_URLS:
+        try:
+            req = urllib.request.Request(
+                url, headers={"User-Agent": "Mozilla/5.0"}
+            )
+            with urllib.request.urlopen(req, timeout=60) as resp, \
+                    open(dst_path, "wb") as out:
+                shutil.copyfileobj(resp, out)
+            if os.path.getsize(dst_path) > 100_000:
+                return True
+        except Exception:
+            continue
+    return False
 STATE_COLORS = {
     "WORKING": "#00C853",
     "PHONE USAGE": "#FF6D00",
@@ -136,8 +167,17 @@ if process_btn:
     workdir = tempfile.mkdtemp(prefix="empmon_")
     input_path = os.path.join(workdir, "input.mp4")
     if use_sample and uploaded is None:
-        with st.spinner("Downloading sample office video…"):
-            urllib.request.urlretrieve(SAMPLE_VIDEO_URL, input_path)
+        if os.path.exists(SAMPLE_VIDEO_FILE):
+            shutil.copyfile(SAMPLE_VIDEO_FILE, input_path)
+        else:
+            with st.spinner("Downloading sample office video…"):
+                ok = download_sample_video(input_path)
+            if not ok:
+                st.error(
+                    "Sample video download failed. Please upload "
+                    "your own video file instead."
+                )
+                st.stop()
     else:
         with open(input_path, "wb") as f:
             f.write(uploaded.getbuffer())
