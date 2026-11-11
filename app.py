@@ -102,7 +102,7 @@ st.markdown(
 
 st.title("🤖 AI Employee Monitoring — Pro")
 st.caption(
-    "YOLOv8s + ByteTrack · WORKING / ABSENT / PHONE USAGE · "
+    "YOLOv8 + ByteTrack · WORKING / ABSENT / PHONE USAGE · "
     "Productivity Score · Smart Alerts · Face Blur · Excel Report"
 )
 st.markdown("---")
@@ -133,8 +133,9 @@ with st.sidebar:
     )
     use_sample = st.checkbox("Use sample office video (no file needed)")
     model_name = st.selectbox(
-        "YOLO model", ["yolov8s.pt", "yolov8n.pt", "yolov8m.pt"], index=0,
-        help="s = best balance of speed + accuracy. n = fastest, m = most accurate.",
+        "YOLO model", ["yolov8n.pt", "yolov8s.pt", "yolov8m.pt"], index=0,
+        help="n = fastest (best for live demo on free CPU). "
+        "s = best balance of speed + accuracy. m = most accurate.",
     )
     conf = st.slider("Detection confidence", 0.2, 0.6, 0.35, 0.05)
     max_seconds = st.number_input(
@@ -195,11 +196,30 @@ if process_btn:
     log_csv = os.path.join(workdir, "log.csv")
     report_xlsx = os.path.join(workdir, "report.xlsx")
 
-    with st.spinner("Loading YOLOv8s + ByteTrack (first run takes a while on free CPU)…"):
+    with st.spinner(
+        "Processing… first run downloads the YOLO model weights, "
+        "then detection + tracking runs. On free CPU, 10 seconds of "
+        "video takes about 1–2 minutes — please wait."
+    ):
         # Lazy import: torch / ultralytics load here, not at app startup.
         from src.engine import run_monitoring
 
-        df = run_monitoring(input_path, output_video, log_csv, config)
+        try:
+            df = run_monitoring(input_path, output_video, log_csv, config)
+        except FileNotFoundError:
+            st.error(
+                "Could not open this video file. Please try a "
+                "standard MP4 (H.264) video, or use the sample video."
+            )
+            st.stop()
+        except Exception as exc:  # never show a bare crash page in a demo
+            st.error(
+                "Processing failed. Please try a shorter video "
+                "(10 seconds), the faster yolov8n model, or the "
+                "sample video. If it keeps failing, check the app logs."
+            )
+            st.caption(f"Technical detail: {type(exc).__name__}: {exc}")
+            st.stop()
         save_excel_report(df, report_xlsx)
 
     st.session_state["df"] = df
