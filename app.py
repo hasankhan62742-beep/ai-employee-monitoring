@@ -26,13 +26,20 @@ import plotly.express as px
 import streamlit as st
 
 from src.config import Config
-from src.engine import run_monitoring
 from src.report import (
     find_alerts,
     productivity_by_desk,
     productivity_by_employee,
     save_excel_report,
 )
+
+# NOTE: src.engine (YOLOv8 / torch / OpenCV) is imported LAZILY inside
+# the Process handler only. Importing it at the top made the whole app
+# hang on Streamlit Cloud's free CPU tier — the page stayed on the
+# "Running..." spinner for minutes with no UI at all, because torch
+# takes that long to load. With lazy import, the title, sidebar and
+# upload form render instantly; the heavy import happens only when
+# the user actually presses Process.
 
 SAMPLE_VIDEO_URL = (
     "https://videos.pexels.com/video-files/7686621/"
@@ -148,7 +155,10 @@ if process_btn:
     log_csv = os.path.join(workdir, "log.csv")
     report_xlsx = os.path.join(workdir, "report.xlsx")
 
-    with st.spinner("Detecting + tracking… YOLOv8s + ByteTrack running."):
+    with st.spinner("Loading YOLOv8s + ByteTrack (first run takes a while on free CPU)…"):
+        # Lazy import: torch / ultralytics load here, not at app startup.
+        from src.engine import run_monitoring
+
         df = run_monitoring(input_path, output_video, log_csv, config)
         save_excel_report(df, report_xlsx)
 
