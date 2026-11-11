@@ -83,9 +83,25 @@ Convert for browser playback (OpenCV writes `mp4v`, browsers want H264):
 ffmpeg -y -i outputs/annotated.mp4 -vcodec libx264 -pix_fmt yuv420p outputs/annotated_h264.mp4
 ```
 
+## Web App — Pro (Streamlit + Plotly)
+
+Modern stack: **Streamlit + Plotly + YOLOv8s + ByteTrack**. Upload a video, set names and thresholds in the sidebar, press Process — the app shows the annotated video, KPI cards, interactive charts, timeline, alerts, and download buttons for video / CSV / Excel.
+
+```bash
+pip install -r requirements.txt
+streamlit run app.py
+```
+
+Open http://localhost:8501 — upload a video (or tick *Use sample office video*), tick the consent box, and press **Process video**.
+
+**Deploy free — Streamlit Community Cloud:**
+1. Push this repo to GitHub (already at `hasankhan62742-beep/ai-employee-monitoring`)
+2. https://share.streamlit.io → New app → repo `hasankhan62742-beep/ai-employee-monitoring`, branch `main`, main file `app.py` → Deploy
+3. Free Cloud runs on CPU — keep test videos short (30–60 s). For GPU speed, use the Colab walkthrough above.
+
 ## Configuration
 
-Edit `src/config.py`:
+Edit `src/config.py` (or set names in the app sidebar):
 
 ```python
 EMPLOYEE_NAMES = {1: "Ahmed", 2: "Sara", 6: "Ali", 8: "Usman"}
@@ -98,8 +114,10 @@ ABSENT_ALERT_SEC = 8      # continuous absence before a MEDIUM alert
 
 ```
 ai-employee-monitoring/
+  app.py                  # Streamlit Pro web app (upload → dashboard → downloads)
   main.py                 # CLI entry point
   requirements.txt
+  .streamlit/config.toml  # dark modern theme
   src/
     config.py             # model, thresholds, names, face blur
     engine.py             # YOLOv8 + ByteTrack, states, drawing, logging
@@ -128,9 +146,9 @@ ai-employee-monitoring/
 
 ## Roadmap
 
+- [x] Streamlit web app — upload a video, get the dashboard in one click
 - [ ] RTSP / live camera input
 - [ ] Calibratable desk zones (click to define)
-- [ ] Streamlit web app — upload a video, get the dashboard in one click
 - [ ] Pose-based states (sitting / standing / head-down)
 - [ ] WhatsApp / email alert delivery
 
