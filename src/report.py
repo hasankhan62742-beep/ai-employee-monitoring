@@ -2,6 +2,32 @@
 import pandas as pd
 
 
+def _format_employee_id(x):
+    """Format one employee_id value for display, or None to skip it.
+
+    The engine writes employee_id as a string: "1", "2", "" for ABSENT
+    rows, and "None" when ByteTrack has not assigned an ID yet.
+    The old code called int(x) directly, which crashed with
+    ValueError on "" / "None" (verified live on Streamlit Cloud,
+    2026-11-11) and wiped out the whole dashboard. This helper
+    skips blank values and passes non-numeric values through as-is.
+    """
+    if x is None:
+        return None
+    try:
+        if pd.isna(x):
+            return None
+    except (TypeError, ValueError):
+        pass
+    s = str(x).strip()
+    if s in ("", "nan", "NaN", "None", "none"):
+        return None
+    try:
+        return f"ID {int(float(s))}"
+    except (TypeError, ValueError):
+        return s
+
+
 def productivity_by_desk(df):
     """One row per desk. Score = working% minus a phone-usage penalty."""
     rows = []
@@ -21,12 +47,14 @@ def productivity_by_desk(df):
         else:
             grade = "C Needs Attention"
         employees = group["employee_id"].dropna().unique()
+        shown = ", ".join(
+            name for name in (_format_employee_id(x) for x in employees)
+            if name
+        )
         rows.append(
             {
                 "Desk": desk,
-                "Employee": ", ".join(
-                    f"ID {int(x)}" for x in employees
-                ) or "-",
+                "Employee": shown or "-",
                 "Total_Sec": total,
                 "Working_Sec": int(working),
                 "Phone_Sec": int(phone),

@@ -220,13 +220,22 @@ if process_btn:
             )
             st.caption(f"Technical detail: {type(exc).__name__}: {exc}")
             st.stop()
-        save_excel_report(df, report_xlsx)
-
-    st.session_state["df"] = df
-    st.session_state["output_video"] = output_video
-    st.session_state["log_csv"] = log_csv
-    st.session_state["report_xlsx"] = report_xlsx
-    st.session_state["workdir"] = workdir
+        # Save results FIRST so the dashboard always renders, even if
+        # the Excel export itself fails (that used to wipe out the
+        # whole result page — verified live 2026-11-11).
+        st.session_state["df"] = df
+        st.session_state["output_video"] = output_video
+        st.session_state["log_csv"] = log_csv
+        st.session_state["report_xlsx"] = None
+        st.session_state["workdir"] = workdir
+        try:
+            save_excel_report(df, report_xlsx)
+            st.session_state["report_xlsx"] = report_xlsx
+        except Exception:
+            st.warning(
+                "Excel report could not be created, but the video, "
+                "dashboard and CSV log below are still available."
+            )
     st.success(f"Done! {len(df)} log rows — {df['time_sec'].max() + 1:.0f} seconds × 3 desks.")
 
 # ---------------- Dashboard ----------------
@@ -340,12 +349,15 @@ with tab_downloads:
             "⬇️ Per-second log (CSV)", f.read(),
             file_name="employee_monitoring_log.csv", mime="text/csv",
         )
-    with open(st.session_state["report_xlsx"], "rb") as f:
-        st.download_button(
-            "⬇️ Excel report (XLSX)", f.read(),
-            file_name="Employee_Monitoring_Pro_Report.xlsx",
-            mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-        )
+    if st.session_state.get("report_xlsx"):
+        with open(st.session_state["report_xlsx"], "rb") as f:
+            st.download_button(
+                "⬇️ Excel report (XLSX)", f.read(),
+                file_name="Employee_Monitoring_Pro_Report.xlsx",
+                mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+            )
+    else:
+        st.info("Excel report was not created for this run — video and CSV are available above.")
 
 st.markdown("---")
 st.caption(
